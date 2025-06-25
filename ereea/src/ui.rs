@@ -55,14 +55,15 @@ pub fn render_map(map: &Map, tick: usize) -> Result<()> {
         f.render_widget(map_widget, chunks[0]);
 
         // HUD avec infos de simulation
-        let hud_text = vec![
-            Line::from(vec![Span::raw(format!("Tick actuel : {}", tick))]),
-            Line::from(vec![Span::raw(format!("Robots : {}", map.robots.len()))]),
-            Line::from("Ressources collectées :"),
-            Line::from("⚡ Energie : 0"),
-            Line::from("⛏ Minerai : 0"),
-            Line::from("? Science : 0"),
-        ];
+      let hud_text = vec![
+        Line::from(vec![Span::raw(format!("Tick actuel : {}", tick))]),
+        Line::from(vec![Span::raw(format!("Robots : {}", map.robots.len()))]),
+        Line::from("Ressources collectées :"),
+        Line::from(format!("⚡ Energie : {}", map.collecte.energie)),
+        Line::from(format!("⛏ Minerai : {}", map.collecte.minerai)),
+        Line::from(format!("🔬 Science : {}", map.collecte.science)),
+    ];
+
 
         let hud = Paragraph::new(hud_text)
             .block(Block::default().title("Statut").borders(Borders::ALL));

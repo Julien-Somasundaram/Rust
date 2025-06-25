@@ -17,6 +17,13 @@ pub struct Map {
     pub hauteur: usize,
     pub grille: Vec<Vec<Cellule>>,
     pub robots: Vec<Robot>,
+    pub collecte: Ressources,
+}
+#[derive(Debug, Default)]
+pub struct Ressources {
+    pub energie: u32,
+    pub minerai: u32,
+    pub science: u32,
 }
 impl Map {
     pub fn new(largeur: usize, hauteur: usize, seed: u32) -> Self {
@@ -64,7 +71,15 @@ impl Map {
             }
         }
 
-        Self { largeur, hauteur, grille, robots }
+        Self {
+        largeur,
+        hauteur,
+        grille,
+        robots,
+        collecte: Ressources::default(),
+        
+}
+
     }
 
     pub fn afficher(&self) {
@@ -87,22 +102,40 @@ impl Map {
         }
     }
     pub fn tick(&mut self) {
-        let positions: Vec<(usize, usize)> = self.robots.iter().map(|r| (r.x, r.y)).collect();
+    let positions: Vec<(usize, usize)> = self.robots.iter().map(|r| (r.x, r.y)).collect();
 
-        for robot in &mut self.robots {
-            let other_positions: Vec<(usize, usize)> = positions
-                .iter()
-                .filter(|&&(x, y)| x != robot.x || y != robot.y)
-                .copied()
-                .collect();
+    for robot in &mut self.robots {
+        let other_positions: Vec<(usize, usize)> = positions
+            .iter()
+            .filter(|&&(x, y)| x != robot.x || y != robot.y)
+            .copied()
+            .collect();
 
-            robot.deplacer(
-                self.largeur,
-                self.hauteur,
-                |x, y| !matches!(self.grille[y][x], Cellule::Obstacle),
-                &other_positions,
-            );
+        robot.deplacer(
+            self.largeur,
+            self.hauteur,
+            |x, y| !matches!(self.grille[y][x], Cellule::Obstacle),
+            &other_positions,
+        );
+
+        // Collecte si sur une ressource
+        let (x, y) = (robot.x, robot.y);
+        match self.grille[y][x] {
+            Cellule::Energie => {
+                self.collecte.energie += 1;
+                self.grille[y][x] = Cellule::Vide;
+            }
+            Cellule::Minerai => {
+                self.collecte.minerai += 1;
+                self.grille[y][x] = Cellule::Vide;
+            }
+            Cellule::Scientifique => {
+                self.collecte.science += 1;
+                self.grille[y][x] = Cellule::Vide;
+            }
+            _ => {}
         }
-
     }
+}
+
 }
