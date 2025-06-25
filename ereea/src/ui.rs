@@ -33,7 +33,7 @@ pub fn render_map(map: &Map, tick: usize) -> Result<()> {
         for y in 0..map.hauteur {
             let mut line = vec![];
             for x in 0..map.largeur {
-                if (x, y) == map.base {
+                if map.bases.contains(&(x, y)){
                     line.push(Span::styled("B", Style::default().fg(Color::White).bg(Color::DarkGray)));
                 } else if let Some(robot) = map.robots.iter().find(|r| r.x == x && r.y == y) {
                     let (ch, color) = match robot.kind {
@@ -60,6 +60,30 @@ pub fn render_map(map: &Map, tick: usize) -> Result<()> {
         let map_widget = Paragraph::new(text_lines)
             .block(Block::default().title("Carte").borders(Borders::ALL));
         f.render_widget(map_widget, chunks[0]);
+        let right_pane = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(10),
+            Constraint::Min(0),
+        ])
+        .split(chunks[1]);
+        let mut minimap = vec![];
+        for y in 0..map.hauteur.min(20) {
+            let mut line = String::new();
+            for x in 0..map.largeur.min(40) {
+                if map.explorée[y][x] {
+                    line.push('.');
+                } else {
+                    line.push(' ');
+                }
+            }
+            minimap.push(Line::from(line));
+        }
+
+        let mini_widget = Paragraph::new(minimap)
+            .block(Block::default().title("🧭 Minimap Explorée").borders(Borders::ALL));
+        f.render_widget(mini_widget, right_pane[0]);
+
 
         // HUD avec infos de simulation
         let mut hud_text = vec![
@@ -85,7 +109,8 @@ pub fn render_map(map: &Map, tick: usize) -> Result<()> {
 
         let hud = Paragraph::new(hud_text)
             .block(Block::default().title("Statut").borders(Borders::ALL));
-        f.render_widget(hud, chunks[1]);
+        f.render_widget(hud, right_pane[1]);
+
     })?;
 
     Ok(())

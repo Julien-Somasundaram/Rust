@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     enable_raw_mode()?;
     execute!(stdout(), EnterAlternateScreen)?;
 
-    for tick in 0..100 {
+    for tick in 0..50 {
         ui::render_map(&map, tick)?;
         map.tick();
         thread::sleep(Duration::from_millis(200));

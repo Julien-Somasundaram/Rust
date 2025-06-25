@@ -18,7 +18,9 @@ pub struct Map {
     pub grille: Vec<Vec<Cellule>>,
     pub robots: Vec<Robot>,
     pub collecte: Ressources,
-    pub base: (usize, usize),
+    pub bases: Vec<(usize, usize)>,
+    pub explorée: Vec<Vec<bool>>
+
 }
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Ressources {
@@ -26,11 +28,16 @@ pub struct Ressources {
     pub minerai: u32,
     pub science: u32,
 }
+
+
 impl Map {
+    
     pub fn new(largeur: usize, hauteur: usize, seed: u32) -> Self {
         use rand::{SeedableRng, rngs::StdRng};
         let mut grille = vec![vec![Cellule::Vide; largeur]; hauteur];
         let perlin = noise::Perlin::new(seed);
+        let bases = vec![(0, 0), (largeur - 1, hauteur - 1)];
+
 
         for y in 0..hauteur {
             for x in 0..largeur {
@@ -75,12 +82,14 @@ impl Map {
                         capacite: 5,
                         retour_base: false,
                         modules: modules.clone(),
+                        last_pos: None,
                     });
                     break;
                 }
             }
         }
-        let base = (0, 0); // position fixe de la station de base
+
+        let explorée = vec![vec![false; largeur]; hauteur];
 
         Self {
         largeur,
@@ -88,7 +97,8 @@ impl Map {
         grille,
         robots,
         collecte: Ressources::default(),
-        base,
+        bases,
+        explorée: explorée,
         
 }
 
@@ -113,20 +123,23 @@ impl Map {
             println!();
         }
     }
-    pub fn tick(&mut self) {
-        let positions: Vec<(usize, usize)> = self.robots.iter().map(|r| (r.x, r.y)).collect();
-        for robot in &mut self.robots {
+pub fn tick(&mut self) {
+    let positions: Vec<(usize, usize)> = self.robots.iter().map(|r| (r.x, r.y)).collect();
+
+    let cibles: Vec<Option<(usize, usize)>> = self.robots.iter().map(|r| {
+        if r.retour_base {
+            Some(self.base_la_plus_proche(r.x, r.y))
+        } else {
+            self.case_non_exploree_la_plus_proche(r.x, r.y)
+        }
+    }).collect();
+
+    for (robot, cible) in self.robots.iter_mut().zip(cibles) {
         let other_positions: Vec<(usize, usize)> = positions
             .iter()
             .filter(|&&(x, y)| x != robot.x || y != robot.y)
             .copied()
             .collect();
-
-        let cible = if robot.retour_base {
-            Some(self.base)
-        } else {
-            None
-        };
 
         robot.deplacer_vers(
             self.largeur,
@@ -138,10 +151,11 @@ impl Map {
 
         let (x, y) = (robot.x, robot.y);
 
-        // Si sur une ressource et pas plein
+        // 🚧 Collecte
         if !robot.retour_base {
             let libre = robot.capacite
                 - (robot.sac.energie + robot.sac.minerai + robot.sac.science);
+
             if libre > 0 {
                 match self.grille[y][x] {
                     Cellule::Energie if robot.modules.contains(&Module::Foreuse) => {
@@ -166,9 +180,22 @@ impl Map {
             }
         }
 
+        // 🏁 Dépôt à la base + mise à jour explorée
+        if robot.retour_base && self.bases.contains(&(x, y)) {
+            let vision_range = 1;
+            for dy in -(vision_range as isize)..=(vision_range as isize) {
+                for dx in -(vision_range as isize)..=(vision_range as isize) {
+                    let nx = x as isize + dx;
+                    let ny = y as isize + dy;
+                    if nx >= 0 && ny >= 0
+                        && nx < self.largeur as isize
+                        && ny < self.hauteur as isize
+                    {
+                        self.explorée[ny as usize][nx as usize] = true;
+                    }
+                }
+            }
 
-        // Déposer à la base
-        if robot.retour_base && (x, y) == self.base {
             self.collecte.energie += robot.sac.energie;
             self.collecte.minerai += robot.sac.minerai;
             self.collecte.science += robot.sac.science;
@@ -176,8 +203,45 @@ impl Map {
             robot.retour_base = false;
         }
     }
-    
-    
 }
 
+
+    pub fn case_non_exploree_la_plus_proche(&self, x: usize, y: usize) -> Option<(usize, usize)> {
+        let mut file = vec![(x, y)];
+        let mut visitée = vec![vec![false; self.largeur]; self.hauteur];
+        visitée[y][x] = true;
+
+        while !file.is_empty() {
+        let (cx, cy) = file.remove(0);
+            if !self.explorée[cy][cx] && !matches!(self.grille[cy][cx], Cellule::Obstacle) {
+                return Some((cx, cy));
+            }
+
+            for (dx, dy) in &[(0, 1), (0, -1), (1, 0), (-1, 0)] {
+                let nx = cx as isize + dx;
+                let ny = cy as isize + dy;
+                if nx >= 0 && ny >= 0
+                    && (nx as usize) < self.largeur
+                    && (ny as usize) < self.hauteur
+                {
+                    let (nx, ny) = (nx as usize, ny as usize);
+                    if !visitée[ny][nx] {
+                        visitée[ny][nx] = true;
+                        file.push((nx, ny));
+                    }
+                }
+            }
+        }
+
+        None
+    }
+    pub fn base_la_plus_proche(&self, x: usize, y: usize) -> (usize, usize) {
+        *self.bases
+            .iter()
+            .min_by_key(|(bx, by)| {
+                (bx.abs_diff(x) + by.abs_diff(y))
+            })
+            .unwrap()
+    }
 }
+
