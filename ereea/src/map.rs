@@ -1,5 +1,7 @@
 use noise::{NoiseFn, Perlin, Seedable};
 use rand::Rng;
+use crate::robot::{Robot, TypeRobot};
+
 
 #[derive(Debug, Clone, Copy)]
 pub enum Cellule {
@@ -14,19 +16,19 @@ pub struct Map {
     pub largeur: usize,
     pub hauteur: usize,
     pub grille: Vec<Vec<Cellule>>,
+    pub robots: Vec<Robot>,
 }
-
 impl Map {
     pub fn new(largeur: usize, hauteur: usize, seed: u32) -> Self {
+        use rand::{SeedableRng, rngs::StdRng};
         let mut grille = vec![vec![Cellule::Vide; largeur]; hauteur];
-        let perlin = Perlin::new(seed);
+        let perlin = noise::Perlin::new(seed);
 
         for y in 0..hauteur {
             for x in 0..largeur {
                 let nx = x as f64 / largeur as f64;
                 let ny = y as f64 / hauteur as f64;
-                let bruit = perlin.get([nx * 5.0, ny * 5.0]); // scale le bruit
-
+                let bruit = perlin.get([nx * 5.0, ny * 5.0]);
                 grille[y][x] = match bruit {
                     b if b < -0.4 => Cellule::Obstacle,
                     b if b < -0.1 => Cellule::Energie,
@@ -37,25 +39,49 @@ impl Map {
             }
         }
 
-        Map {
-            largeur,
-            hauteur,
-            grille,
+        // Génération des robots
+        let mut rng = StdRng::seed_from_u64(seed as u64);
+        let mut robots: Vec<Robot> = vec![];
+
+        let types = [TypeRobot::Explorateur, TypeRobot::Recolteur, TypeRobot::Scientifique];
+
+        for id in 0..5 {
+            loop {
+                let x = rng.gen_range(0..largeur);
+                let y = rng.gen_range(0..hauteur);
+
+                if !matches!(grille[y][x], Cellule::Obstacle) &&
+                   !robots.iter().any(|r| r.x == x && r.y == y)
+                {
+                    robots.push(Robot {
+                        id,
+                        x,
+                        y,
+                        kind: types[rng.gen_range(0..types.len())],
+                    });
+                    break;
+                }
+            }
         }
+
+        Self { largeur, hauteur, grille, robots }
     }
 
     pub fn afficher(&self) {
-        for ligne in &self.grille {
-            for cellule in ligne {
-                let symbole = match cellule {
-                    Cellule::Vide => ' ',
-                    Cellule::Obstacle => '#',
-                    Cellule::Energie => 'E',       // ⚡ → E
-                    Cellule::Minerai => 'M',       // ⛏ → M
-                    Cellule::Scientifique => 'S',  // ? → S
-                };
-
-                print!("{}", symbole);
+        for y in 0..self.hauteur {
+            for x in 0..self.largeur {
+                if let Some(robot) = self.robots.iter().find(|r| r.x == x && r.y == y) {
+                    print!("{}", robot.symbole());
+                } else {
+                    let symbole = match self.grille[y][x] {
+                        Cellule::Vide => ' ',
+                        Cellule::Obstacle => '#',
+                        Cellule::Energie => '+',
+                        Cellule::Minerai => '*',
+                        Cellule::Scientifique => '?',
+                    };
+                    print!("{}", symbole);
+                }
             }
             println!();
         }
