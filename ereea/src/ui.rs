@@ -33,7 +33,9 @@ pub fn render_map(map: &Map, tick: usize) -> Result<()> {
         for y in 0..map.hauteur {
             let mut line = vec![];
             for x in 0..map.largeur {
-                if let Some(robot) = map.robots.iter().find(|r| r.x == x && r.y == y) {
+                if (x, y) == map.base {
+                    line.push(Span::styled("B", Style::default().fg(Color::White).bg(Color::DarkGray)));
+                } else if let Some(robot) = map.robots.iter().find(|r| r.x == x && r.y == y) {
                     let (ch, color) = match robot.kind {
                         TypeRobot::Explorateur => ('E', Color::Cyan),
                         TypeRobot::Recolteur => ('R', Color::Yellow),
@@ -50,6 +52,7 @@ pub fn render_map(map: &Map, tick: usize) -> Result<()> {
                     };
                     line.push(Span::styled(ch.to_string(), Style::default().fg(color)));
                 }
+
             }
             text_lines.push(Line::from(line));
         }

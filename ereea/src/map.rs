@@ -18,8 +18,9 @@ pub struct Map {
     pub grille: Vec<Vec<Cellule>>,
     pub robots: Vec<Robot>,
     pub collecte: Ressources,
+    pub base: (usize, usize),
 }
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct Ressources {
     pub energie: u32,
     pub minerai: u32,
@@ -65,11 +66,15 @@ impl Map {
                         x,
                         y,
                         kind: types[rng.gen_range(0..types.len())],
+                        sac: Ressources::default(),
+                        capacite: 5,
+                        retour_base: false,
                     });
                     break;
                 }
             }
         }
+        let base = (0, 0); // position fixe de la station de base
 
         Self {
         largeur,
@@ -77,6 +82,7 @@ impl Map {
         grille,
         robots,
         collecte: Ressources::default(),
+        base,
         
 }
 
@@ -103,39 +109,68 @@ impl Map {
     }
     pub fn tick(&mut self) {
     let positions: Vec<(usize, usize)> = self.robots.iter().map(|r| (r.x, r.y)).collect();
-
     for robot in &mut self.robots {
-        let other_positions: Vec<(usize, usize)> = positions
-            .iter()
-            .filter(|&&(x, y)| x != robot.x || y != robot.y)
-            .copied()
-            .collect();
+    let other_positions: Vec<(usize, usize)> = positions
+        .iter()
+        .filter(|&&(x, y)| x != robot.x || y != robot.y)
+        .copied()
+        .collect();
 
-        robot.deplacer(
-            self.largeur,
-            self.hauteur,
-            |x, y| !matches!(self.grille[y][x], Cellule::Obstacle),
-            &other_positions,
-        );
+    let cible = if robot.retour_base {
+        Some(self.base)
+    } else {
+        None
+    };
 
-        // Collecte si sur une ressource
-        let (x, y) = (robot.x, robot.y);
-        match self.grille[y][x] {
-            Cellule::Energie => {
-                self.collecte.energie += 1;
-                self.grille[y][x] = Cellule::Vide;
+    robot.deplacer_vers(
+        self.largeur,
+        self.hauteur,
+        |x, y| !matches!(self.grille[y][x], Cellule::Obstacle),
+        &other_positions,
+        cible,
+    );
+
+    let (x, y) = (robot.x, robot.y);
+
+    // Si sur une ressource et pas plein
+    if !robot.retour_base {
+        let libre = robot.capacite
+            - (robot.sac.energie + robot.sac.minerai + robot.sac.science);
+        if libre > 0 {
+            match self.grille[y][x] {
+                Cellule::Energie => {
+                    robot.sac.energie += 1;
+                    self.grille[y][x] = Cellule::Vide;
+                }
+                Cellule::Minerai => {
+                    robot.sac.minerai += 1;
+                    self.grille[y][x] = Cellule::Vide;
+                }
+                Cellule::Scientifique => {
+                    robot.sac.science += 1;
+                    self.grille[y][x] = Cellule::Vide;
+                }
+                _ => {}
             }
-            Cellule::Minerai => {
-                self.collecte.minerai += 1;
-                self.grille[y][x] = Cellule::Vide;
-            }
-            Cellule::Scientifique => {
-                self.collecte.science += 1;
-                self.grille[y][x] = Cellule::Vide;
-            }
-            _ => {}
+        }
+
+        let total = robot.sac.energie + robot.sac.minerai + robot.sac.science;
+        if total >= robot.capacite {
+            robot.retour_base = true;
         }
     }
+
+    // Déposer à la base
+    if robot.retour_base && (x, y) == self.base {
+        self.collecte.energie += robot.sac.energie;
+        self.collecte.minerai += robot.sac.minerai;
+        self.collecte.science += robot.sac.science;
+        robot.sac = Ressources::default();
+        robot.retour_base = false;
+    }
+}
+   
+    
 }
 
 }
