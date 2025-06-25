@@ -8,7 +8,7 @@ pub enum TypeRobot {
     Scientifique,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Robot {
     pub id: u32,
     pub x: usize,
@@ -17,8 +17,14 @@ pub struct Robot {
     pub sac: Ressources,
     pub capacite: u32,
     pub retour_base: bool,
+    pub modules: Vec<Module>,
 }
-
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Module {
+    Capteur,
+    Foreuse,
+    Analyseur,
+}
 impl Robot {
     pub fn symbole(&self) -> char {
         match self.kind {

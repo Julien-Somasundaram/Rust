@@ -1,6 +1,6 @@
 use noise::{NoiseFn, Perlin, Seedable};
 use rand::Rng;
-use crate::robot::{Robot, TypeRobot};
+use crate::robot::{Robot, TypeRobot, Module};
 
 
 #[derive(Debug, Clone, Copy)]
@@ -52,7 +52,12 @@ impl Map {
         let mut robots: Vec<Robot> = vec![];
 
         let types = [TypeRobot::Explorateur, TypeRobot::Recolteur, TypeRobot::Scientifique];
-
+        let kind = types[rng.gen_range(0..types.len())];
+        let modules = match kind {
+            TypeRobot::Explorateur => vec![Module::Capteur],
+            TypeRobot::Recolteur => vec![Module::Foreuse],
+            TypeRobot::Scientifique => vec![Module::Analyseur],
+        };
         for id in 0..5 {
             loop {
                 let x = rng.gen_range(0..largeur);
@@ -65,10 +70,11 @@ impl Map {
                         id,
                         x,
                         y,
-                        kind: types[rng.gen_range(0..types.len())],
+                        kind,
                         sac: Ressources::default(),
                         capacite: 5,
                         retour_base: false,
+                        modules: modules.clone(),
                     });
                     break;
                 }
@@ -108,68 +114,69 @@ impl Map {
         }
     }
     pub fn tick(&mut self) {
-    let positions: Vec<(usize, usize)> = self.robots.iter().map(|r| (r.x, r.y)).collect();
-    for robot in &mut self.robots {
-    let other_positions: Vec<(usize, usize)> = positions
-        .iter()
-        .filter(|&&(x, y)| x != robot.x || y != robot.y)
-        .copied()
-        .collect();
+        let positions: Vec<(usize, usize)> = self.robots.iter().map(|r| (r.x, r.y)).collect();
+        for robot in &mut self.robots {
+        let other_positions: Vec<(usize, usize)> = positions
+            .iter()
+            .filter(|&&(x, y)| x != robot.x || y != robot.y)
+            .copied()
+            .collect();
 
-    let cible = if robot.retour_base {
-        Some(self.base)
-    } else {
-        None
-    };
+        let cible = if robot.retour_base {
+            Some(self.base)
+        } else {
+            None
+        };
 
-    robot.deplacer_vers(
-        self.largeur,
-        self.hauteur,
-        |x, y| !matches!(self.grille[y][x], Cellule::Obstacle),
-        &other_positions,
-        cible,
-    );
+        robot.deplacer_vers(
+            self.largeur,
+            self.hauteur,
+            |x, y| !matches!(self.grille[y][x], Cellule::Obstacle),
+            &other_positions,
+            cible,
+        );
 
-    let (x, y) = (robot.x, robot.y);
+        let (x, y) = (robot.x, robot.y);
 
-    // Si sur une ressource et pas plein
-    if !robot.retour_base {
-        let libre = robot.capacite
-            - (robot.sac.energie + robot.sac.minerai + robot.sac.science);
-        if libre > 0 {
-            match self.grille[y][x] {
-                Cellule::Energie => {
-                    robot.sac.energie += 1;
-                    self.grille[y][x] = Cellule::Vide;
+        // Si sur une ressource et pas plein
+        if !robot.retour_base {
+            let libre = robot.capacite
+                - (robot.sac.energie + robot.sac.minerai + robot.sac.science);
+            if libre > 0 {
+                match self.grille[y][x] {
+                    Cellule::Energie if robot.modules.contains(&Module::Foreuse) => {
+                        robot.sac.energie += 1;
+                        self.grille[y][x] = Cellule::Vide;
+                    }
+                    Cellule::Minerai if robot.modules.contains(&Module::Foreuse) => {
+                        robot.sac.minerai += 1;
+                        self.grille[y][x] = Cellule::Vide;
+                    }
+                    Cellule::Scientifique if robot.modules.contains(&Module::Analyseur) => {
+                        robot.sac.science += 1;
+                        self.grille[y][x] = Cellule::Vide;
+                    }
+                    _ => {}
                 }
-                Cellule::Minerai => {
-                    robot.sac.minerai += 1;
-                    self.grille[y][x] = Cellule::Vide;
-                }
-                Cellule::Scientifique => {
-                    robot.sac.science += 1;
-                    self.grille[y][x] = Cellule::Vide;
-                }
-                _ => {}
+            }
+
+            let total = robot.sac.energie + robot.sac.minerai + robot.sac.science;
+            if total >= robot.capacite {
+                robot.retour_base = true;
             }
         }
 
-        let total = robot.sac.energie + robot.sac.minerai + robot.sac.science;
-        if total >= robot.capacite {
-            robot.retour_base = true;
+
+        // Déposer à la base
+        if robot.retour_base && (x, y) == self.base {
+            self.collecte.energie += robot.sac.energie;
+            self.collecte.minerai += robot.sac.minerai;
+            self.collecte.science += robot.sac.science;
+            robot.sac = Ressources::default();
+            robot.retour_base = false;
         }
     }
-
-    // Déposer à la base
-    if robot.retour_base && (x, y) == self.base {
-        self.collecte.energie += robot.sac.energie;
-        self.collecte.minerai += robot.sac.minerai;
-        self.collecte.science += robot.sac.science;
-        robot.sac = Ressources::default();
-        robot.retour_base = false;
-    }
-}
-   
+    
     
 }
 

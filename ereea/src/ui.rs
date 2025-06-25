@@ -62,15 +62,26 @@ pub fn render_map(map: &Map, tick: usize) -> Result<()> {
         f.render_widget(map_widget, chunks[0]);
 
         // HUD avec infos de simulation
-      let hud_text = vec![
-        Line::from(vec![Span::raw(format!("Tick actuel : {}", tick))]),
-        Line::from(vec![Span::raw(format!("Robots : {}", map.robots.len()))]),
-        Line::from("Ressources collectées :"),
-        Line::from(format!("⚡ Energie : {}", map.collecte.energie)),
-        Line::from(format!("⛏ Minerai : {}", map.collecte.minerai)),
-        Line::from(format!("🔬 Science : {}", map.collecte.science)),
-    ];
+        let mut hud_text = vec![
+            Line::from(vec![Span::raw(format!("Tick actuel : {}", tick))]),
+            Line::from(vec![Span::raw(format!("Robots : {}", map.robots.len()))]),
+            Line::from("Ressources collectées :"),
+            Line::from(format!("⚡ Energie : {}", map.collecte.energie)),
+            Line::from(format!("⛏ Minerai : {}", map.collecte.minerai)),
+            Line::from(format!("🔬 Science : {}", map.collecte.science)),
+        ];
+        for r in &map.robots {
+            hud_text.push(Line::from(format!("🤖 Robot {} - {:?}", r.id, r.kind)));
+            hud_text.push(Line::from(format!("📍 Position : ({}, {})", r.x, r.y)));
+            hud_text.push(Line::from(format!("📦 Capacité : {}/{}", 
+                r.sac.energie + r.sac.minerai + r.sac.science, r.capacite)));
+            hud_text.push(Line::from(format!("🏁 Retour base : {}", r.retour_base)));
+            let mods: Vec<String> = r.modules.iter().map(|m| format!("{:?}", m)).collect();
+            hud_text.push(Line::from(format!("🔧 Modules : {}", mods.join(", "))));
+            hud_text.push(Line::from("------------------------"));
+        }
 
+ 
 
         let hud = Paragraph::new(hud_text)
             .block(Block::default().title("Statut").borders(Borders::ALL));
