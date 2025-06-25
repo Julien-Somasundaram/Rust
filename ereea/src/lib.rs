@@ -1,2 +1,4 @@
-pub mod map;
-pub mod robot;
+pub mod maps;
+pub mod robots;
+pub mod simulation;
+pub mod UI;
