@@ -86,4 +86,23 @@ impl Map {
             println!();
         }
     }
+    pub fn tick(&mut self) {
+        let positions: Vec<(usize, usize)> = self.robots.iter().map(|r| (r.x, r.y)).collect();
+
+        for robot in &mut self.robots {
+            let other_positions: Vec<(usize, usize)> = positions
+                .iter()
+                .filter(|&&(x, y)| x != robot.x || y != robot.y)
+                .copied()
+                .collect();
+
+            robot.deplacer(
+                self.largeur,
+                self.hauteur,
+                |x, y| !matches!(self.grille[y][x], Cellule::Obstacle),
+                &other_positions,
+            );
+        }
+
+    }
 }
