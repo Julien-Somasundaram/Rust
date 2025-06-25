@@ -7,14 +7,18 @@ use ratatui::{
     Terminal,
 };
 use std::io::{stdout, Result};
+use crossterm::{execute, terminal::{Clear, ClearType}};
 
 use crate::map::{Map, Cellule};
 use crate::robot::{Robot, TypeRobot};
 
 pub fn render_map(map: &Map, tick: usize) -> Result<()> {
-    let mut stdout = stdout();
-    let backend = CrosstermBackend::new(&mut stdout);
+    let mut out = stdout();
+    execute!(out, Clear(ClearType::All))?;
+    let backend = CrosstermBackend::new(&mut out);
     let mut terminal = Terminal::new(backend)?;
+
+
 
     terminal.draw(|f| {
         let size = f.size();
