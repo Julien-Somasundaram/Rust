@@ -1,9 +1,9 @@
-use noise::{NoiseFn, Perlin, Seedable};
+use noise::NoiseFn;
 use rand::Rng;
 use crate::robot::{Robot, TypeRobot, Module};
 
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy,PartialEq)]
 pub enum Cellule {
     Vide,
     Obstacle,
@@ -239,7 +239,7 @@ pub fn tick(&mut self) {
         *self.bases
             .iter()
             .min_by_key(|(bx, by)| {
-                (bx.abs_diff(x) + by.abs_diff(y))
+                bx.abs_diff(x) + by.abs_diff(y)
             })
             .unwrap()
     }

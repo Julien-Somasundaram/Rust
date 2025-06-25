@@ -10,7 +10,7 @@ use std::io::{stdout, Result};
 use crossterm::{execute, terminal::{Clear, ClearType}};
 
 use crate::map::{Map, Cellule};
-use crate::robot::{Robot, TypeRobot};
+use crate::robot::TypeRobot;
 
 pub fn render_map(map: &Map, tick: usize) -> Result<()> {
     let mut out = stdout();
